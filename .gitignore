@@ -1,0 +1,6 @@
+bin
+obj
+/packages
+Farming.sln.DotSettings.user
+.idea
+.vs
