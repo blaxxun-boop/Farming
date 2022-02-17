@@ -9,7 +9,7 @@ namespace Farming;
 [BepInPlugin(ModGUID, ModName, ModVersion)]
 public class Farming : BaseUnityPlugin
 {
-	private const string ModName = "Ranching";
+	private const string ModName = "Farming";
 	private const string ModVersion = "1.0.0";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
