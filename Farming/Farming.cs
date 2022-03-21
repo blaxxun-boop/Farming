@@ -13,7 +13,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "1.1.0";
+	private const string ModVersion = "1.1.1";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -98,7 +98,7 @@ public class Farming : BaseUnityPlugin
 				__instance.m_nview.GetZDO().Set("Farming Skill Level", Player.m_localPlayer.GetSkillFactor("Farming"));
 				Player.m_localPlayer.RaiseSkill("Farming");
 			}
-			if (__instance.m_nview?.GetZDO()?.GetFloat("Farming Skill Level") >= ignoreBiomeLevel.Value / 100f)
+			if (ignoreBiomeLevel.Value > 0 && __instance.m_nview?.GetZDO()?.GetFloat("Farming Skill Level") >= ignoreBiomeLevel.Value / 100f)
 			{
 				__instance.m_biome = (Heightmap.Biome)(-1);
 			}
