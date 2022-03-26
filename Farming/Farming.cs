@@ -13,7 +13,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "1.1.1";
+	private const string ModVersion = "1.1.2";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -65,7 +65,7 @@ public class Farming : BaseUnityPlugin
 		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the farming skill.", new AcceptableValueRange<float>(0.01f, 5f)));
 		experienceGainedFactor.SettingChanged += (_, _) => farming.SkillGainFactor = experienceGainedFactor.Value;
 		farming.SkillGainFactor = experienceGainedFactor.Value;
-		
+
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
 		harmony.PatchAll(assembly);
@@ -118,11 +118,14 @@ public class Farming : BaseUnityPlugin
 	{
 		private static void Postfix(Pickable __instance)
 		{
+			int yieldMultiplier = __instance.m_nview.GetZDO().GetInt("Farming Yield Multiplier", 1);
 			if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
 			{
-				int baseYield = Mathf.FloorToInt(cropYieldFactor.Value);
-				__instance.m_amount *= baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 0 : 1);
+				int baseYield = Mathf.FloorToInt(cropYieldFactor.Value - 1);
+				yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - 1 - baseYield ? 0 : 1);
+				__instance.m_nview.GetZDO().Set("Farming Yield Multiplier", yieldMultiplier);
 			}
+			__instance.m_amount *= yieldMultiplier;
 		}
 	}
 }
