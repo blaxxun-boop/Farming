@@ -74,7 +74,7 @@ public class MassPlant
 		{
 			return;
 		}
-		
+
 		if (!placeSuccessful)
 		{
 			//Ignore when the place didn't happen
@@ -129,14 +129,14 @@ public class MassPlant
 					component.SetCreator(__instance.GetPlayerID());
 				}
 				placedPiece.m_placeEffect.Create(newPos, ghostRotation, newPlaceObj.transform);
-				++Game.instance.GetPlayerProfile().m_playerStats.m_builds;
-
-				__instance.ConsumeResources(placedPiece.m_resources, 0);
 			}
 			finally
 			{
 				Farming.PlayerIsPlantingPlants.planting = false;
 			}
+
+			++Game.instance.GetPlayerProfile().m_playerStats.m_builds;
+			__instance.ConsumeResources(placedPiece.m_resources, 0);
 		}
 	}
 
@@ -223,7 +223,7 @@ public class MassPlant
 			SetGhostsActive(false);
 			return;
 		}
-		
+
 		if (Farming.singlePlantHotkey.Value.IsPressed())
 		{
 			//Hotkey required
