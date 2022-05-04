@@ -13,7 +13,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "1.2.1";
+	private const string ModVersion = "1.2.2";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -23,7 +23,7 @@ public class Farming : BaseUnityPlugin
 	private static ConfigEntry<float> cropYieldFactor = null!;
 	private static ConfigEntry<int> ignoreBiomeLevel = null!;
 	private static ConfigEntry<float> experienceGainedFactor = null!;
-	public static ConfigEntry<KeyboardShortcut> singlePlantHotkey = null!;
+	public static ConfigEntry<KeyboardShortcut> plantModeToggleHotkey = null!;
 	public static ConfigEntry<int> increasePlantAmount = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
@@ -68,7 +68,7 @@ public class Farming : BaseUnityPlugin
 		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the farming skill.", new AcceptableValueRange<float>(0.01f, 5f)));
 		experienceGainedFactor.SettingChanged += (_, _) => farming.SkillGainFactor = experienceGainedFactor.Value;
 		farming.SkillGainFactor = experienceGainedFactor.Value;
-		singlePlantHotkey = config("3 - Other", "Single Plant Hotkey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Shortcut to press to toggle the single plant mode."), false);
+		plantModeToggleHotkey = config("3 - Other", "Toggle Mass Plant Hotkey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Shortcut to press to toggle between the single plant mode and the mass plant mode. Please note that you have to stand still, to toggle this."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
@@ -122,14 +122,17 @@ public class Farming : BaseUnityPlugin
 	{
 		private static void Postfix(Pickable __instance)
 		{
-			int yieldMultiplier = __instance.m_nview.GetZDO().GetInt("Farming Yield Multiplier", 1);
-			if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
+			if (__instance.m_nview?.GetZDO() is { } zdo)
 			{
-				int baseYield = Mathf.FloorToInt(cropYieldFactor.Value - 1);
-				yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - 1 - baseYield ? 0 : 1);
-				__instance.m_nview.GetZDO().Set("Farming Yield Multiplier", yieldMultiplier);
+				int yieldMultiplier = zdo.GetInt("Farming Yield Multiplier", 1);
+				if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
+				{
+					int baseYield = Mathf.FloorToInt(cropYieldFactor.Value - 1);
+					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - 1 - baseYield ? 0 : 1);
+					zdo.Set("Farming Yield Multiplier", yieldMultiplier);
+				}
+				__instance.m_amount *= yieldMultiplier;
 			}
-			__instance.m_amount *= yieldMultiplier;
 		}
 	}
 }

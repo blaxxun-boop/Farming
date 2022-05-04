@@ -43,6 +43,7 @@ public class MassPlant
 	private static Quaternion ghostRotation;
 	private static Piece placedPiece = null!;
 	private static bool placeSuccessful = false;
+	private static bool massPlanting = true;
 
 	private static int GridWidth() => 1 + Mathf.FloorToInt(Player.m_localPlayer.GetSkillFactor("Farming") * (100f / Farming.increasePlantAmount.Value)) / 2;
 	private static int GridHeight() => 1 + Mathf.FloorToInt(Mathf.Min(Player.m_localPlayer.GetSkillFactor("Farming"), 0.999f) * (100f / Farming.increasePlantAmount.Value) + 1) / 2;
@@ -87,7 +88,7 @@ public class MassPlant
 			return;
 		}
 
-		if (Farming.singlePlantHotkey.Value.IsPressed())
+		if (Farming.plantModeToggleHotkey.Value.IsPressed())
 		{
 			//Hotkey required
 			return;
@@ -224,9 +225,14 @@ public class MassPlant
 			return;
 		}
 
-		if (Farming.singlePlantHotkey.Value.IsPressed())
+		if (Farming.plantModeToggleHotkey.Value.IsDown())
 		{
 			//Hotkey required
+			massPlanting = !massPlanting;
+		}
+
+		if (!massPlanting)
+		{
 			SetGhostsActive(false);
 			return;
 		}
