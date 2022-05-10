@@ -13,7 +13,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "1.2.2";
+	private const string ModVersion = "2.0.0";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -25,6 +25,9 @@ public class Farming : BaseUnityPlugin
 	private static ConfigEntry<float> experienceGainedFactor = null!;
 	public static ConfigEntry<KeyboardShortcut> plantModeToggleHotkey = null!;
 	public static ConfigEntry<int> increasePlantAmount = null!;
+	public static ConfigEntry<int> increaseHarvestAmount = null!;
+	public static ConfigEntry<Toggle> randomRotation = null!;
+	public static ConfigEntry<KeyboardShortcut> snapModeToggleHotkey = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -38,7 +41,7 @@ public class Farming : BaseUnityPlugin
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, string description, bool synchronizedSetting = true) => config(group, name, value, new ConfigDescription(description), synchronizedSetting);
 
-	private enum Toggle
+	public enum Toggle
 	{
 		On = 1,
 		Off = 0
@@ -65,10 +68,14 @@ public class Farming : BaseUnityPlugin
 		cropYieldFactor = config("2 - Crops", "Crop Yield Factor", 2f, new ConfigDescription("Item yield factor for crops at skill level 100.", new AcceptableValueRange<float>(1f, 5f)));
 		ignoreBiomeLevel = config("2 - Crops", "Ignore Biome Level", 50, new ConfigDescription("Required skill level to ignore the required biome of planted crops. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
 		increasePlantAmount = config("2 - Crops", "Plant Increase Interval", 20, new ConfigDescription("Level interval to increase the number of crops planted at the same time. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
+		increaseHarvestAmount = config("2 - Crops", "Harvest Increase Interval", 20, new ConfigDescription("Level interval to increase the radius harvested at the same time. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
+		randomRotation = config("2 - Crops", "Random Rotation", Toggle.Off, new ConfigDescription("Rotates each crop randomly. Some people say this looks more natural."), false);
+		randomRotation.SettingChanged += (_, _) => MassPlant.determineGhostRotations();
 		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the farming skill.", new AcceptableValueRange<float>(0.01f, 5f)));
 		experienceGainedFactor.SettingChanged += (_, _) => farming.SkillGainFactor = experienceGainedFactor.Value;
 		farming.SkillGainFactor = experienceGainedFactor.Value;
 		plantModeToggleHotkey = config("3 - Other", "Toggle Mass Plant Hotkey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Shortcut to press to toggle between the single plant mode and the mass plant mode. Please note that you have to stand still, to toggle this."), false);
+		snapModeToggleHotkey = config("3 - Other", "Toggle Snapping Hotkey", new KeyboardShortcut(KeyCode.LeftControl), new ConfigDescription("Shortcut to press to toggle between snapping mode and not snapping. Please note that you have to stand still, to toggle this."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);

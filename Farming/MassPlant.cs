@@ -26,6 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -33,6 +34,8 @@ using SkillManager;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
+// ReSharper disable Unity.PreferNonAllocApi
 
 namespace Farming;
 
@@ -41,9 +44,13 @@ public class MassPlant
 {
 	private static Vector3 ghostCenterPosition;
 	private static Quaternion ghostRotation;
+	private static float[] randomGhostRotations = new float[1];
 	private static Piece placedPiece = null!;
+	private static List<PlantingCell> placements = new();
 	private static bool placeSuccessful = false;
 	private static bool massPlanting = true;
+	private static bool snapping = true;
+	private const float plantSpacing = 1.8f;
 
 	private static int GridWidth() => 1 + Mathf.FloorToInt(Player.m_localPlayer.GetSkillFactor("Farming") * (100f / Farming.increasePlantAmount.Value)) / 2;
 	private static int GridHeight() => 1 + Mathf.FloorToInt(Mathf.Min(Player.m_localPlayer.GetSkillFactor("Farming"), 0.999f) * (100f / Farming.increasePlantAmount.Value) + 1) / 2;
@@ -88,7 +95,7 @@ public class MassPlant
 			return;
 		}
 
-		if (Farming.plantModeToggleHotkey.Value.IsPressed())
+		if (!massPlanting)
 		{
 			//Hotkey required
 			return;
@@ -100,8 +107,9 @@ public class MassPlant
 			return;
 		}
 
-		foreach (Vector3 newPos in BuildPlantingGridPositions(ghostCenterPosition, plant, ghostRotation).Skip(1))
+		for (int i = 1; i < placements.Count; ++i)
 		{
+			Vector3 newPos = placements[i].pos;
 			if (placedPiece.m_cultivatedGroundOnly && !heightmap.IsCultivated(newPos))
 			{
 				continue;
@@ -113,7 +121,7 @@ public class MassPlant
 				return;
 			}
 
-			if (!HasGrowSpace(newPos, placedPiece.gameObject))
+			if (placements[i].valid != Player.PlacementStatus.Valid)
 			{
 				continue;
 			}
@@ -122,14 +130,16 @@ public class MassPlant
 			{
 				Farming.PlayerIsPlantingPlants.planting = true;
 
-				GameObject newPlaceObj = Object.Instantiate(placedPiece.gameObject, newPos, ghostRotation);
+				Quaternion rotation = Quaternion.Euler(new Vector3(0, randomGhostRotations[i], 0)) * ghostRotation;
+
+				GameObject newPlaceObj = Object.Instantiate(placedPiece.gameObject, newPos, rotation);
 
 				Piece component = newPlaceObj.GetComponent<Piece>();
 				if (component)
 				{
 					component.SetCreator(__instance.GetPlayerID());
 				}
-				placedPiece.m_placeEffect.Create(newPos, ghostRotation, newPlaceObj.transform);
+				placedPiece.m_placeEffect.Create(newPos, rotation, newPlaceObj.transform);
 			}
 			finally
 			{
@@ -141,36 +151,139 @@ public class MassPlant
 		}
 	}
 
-	private static List<Vector3> BuildPlantingGridPositions(Vector3 originPos, Plant placedPlant, Quaternion rotation)
+	private struct PlantingCell
 	{
-		float plantRadius = placedPlant.m_growRadius * 2;
+		public Vector3 pos;
+		public Player.PlacementStatus valid;
+	}
+
+	private static List<PlantingCell> BuildPlantingGridPositions(Vector3 originPos, Plant placedPlant, Quaternion rotation)
+	{
+		float plantDistance = placedPlant.m_growRadius * 2;
 		int height = GridHeight();
 		int width = GridWidth();
 
 		List<Vector3> gridPositions = new(width * height);
-		Vector3 left = rotation * Vector3.left * plantRadius;
-		Vector3 forward = rotation * Vector3.forward * plantRadius;
-		Vector3 gridOrigin = originPos - (forward * (width - 1) / 2f) - (left * (height - 1) / 2f);
+		Vector3 left = rotation * Vector3.left * plantDistance;
+		Vector3 forward = rotation * Vector3.forward * plantDistance;
+		Vector3 gridOrigin = originPos - forward * (width - 1) / 2f - left * (height - 1) / 2f;
 
 		for (int x = 0; x < width; ++x)
 		{
 			Vector3 newPos = gridOrigin;
 			for (int z = 0; z < height; ++z)
 			{
-				newPos.y = ZoneSystem.instance.GetGroundHeight(newPos);
 				gridPositions.Add(newPos);
 				newPos += left;
 			}
 			gridOrigin += forward;
 		}
 
-		// exchange positions to have primary ghost (i.e. Player.m_placementGhost) position next to center
-		// ReSharper disable once SwapViaDeconstruction
-		Vector3 centerPos = gridPositions[gridPositions.Count / 2];
-		gridPositions[gridPositions.Count / 2] = gridPositions[0];
-		gridPositions[0] = centerPos;
+		if (snapping)
+		{
+			int plantMask = LayerMask.GetMask("piece_nonsolid");
 
-		return gridPositions;
+			HashSet<Vector3> snappingPositions = new();
+			float minTranslationAll = float.MaxValue;
+			foreach (Vector3 gridPos in gridPositions)
+			{
+				foreach (Collider collider in Physics.OverlapSphere(gridPos, plantDistance * plantSpacing * 1.5f, plantMask))
+				{
+					if (collider.GetComponent<Plant>() || collider.GetComponent<Pickable>())
+					{
+						Vector3 position = collider.transform.position;
+						snappingPositions.Add(position with { y = 0 });
+						minTranslationAll = Mathf.Min(minTranslationAll, Utils.DistanceXZ(gridPos, position));
+					}
+				}
+			}
+
+			if (minTranslationAll < plantDistance * plantSpacing)
+			{
+				Quaternion snapRotation = Quaternion.identity;
+				if (snappingPositions.Count > 1)
+				{
+					Vector3 firstSnapPos = snappingPositions.OrderBy(p => snappingPositions.Where(s => s != p).Min(s => Utils.DistanceXZ(s, p)) + (p - originPos).magnitude / 1000f).First();
+					Vector3 nextSnapPos = snappingPositions.Where(p => p != firstSnapPos).OrderBy(p => Utils.DistanceXZ(firstSnapPos, p) + (p - originPos).magnitude / 1000f).First();
+					float angle = Vector3.SignedAngle(gridPositions[0] - gridPositions[1], firstSnapPos - nextSnapPos, Vector3.up);
+					snapRotation = Quaternion.Euler(0, angle, 0);
+					for (int i = 0; i < gridPositions.Count; ++i)
+					{
+						gridPositions[i] = snapRotation * (gridPositions[i] - originPos) + originPos;
+					}
+				}
+
+				float minTranslation = float.MaxValue;
+				Vector3 translationVector = Vector3.zero;
+				for (int i = 0; translationVector == Vector3.zero && i < gridPositions.Count; ++i)
+				{
+					foreach (Collider collider in Physics.OverlapSphere(gridPositions[i], plantDistance * plantSpacing, plantMask))
+					{
+						if (collider.GetComponent<Plant>() || collider.GetComponent<Pickable>())
+						{
+							float distance = Utils.DistanceXZ(gridPositions[i], collider.transform.position);
+							if (distance - 0.001 < minTranslation)
+							{
+								minTranslation = distance;
+								translationVector = gridPositions[i] with { y = 0 } - collider.transform.position with { y = 0 };
+
+								if ((gridPositions[i] with { y = 0 } + snapRotation * left - collider.transform.position with { y = 0 }).sqrMagnitude < translationVector.sqrMagnitude)
+								{
+									translationVector += snapRotation * left;
+								}
+								else if ((gridPositions[i] with { y = 0 } - snapRotation * left - collider.transform.position with { y = 0 }).sqrMagnitude < translationVector.sqrMagnitude)
+								{
+									translationVector -= snapRotation * left;
+								}
+
+								if ((gridPositions[i] with { y = 0 } + snapRotation * forward - collider.transform.position with { y = 0 }).sqrMagnitude < translationVector.sqrMagnitude)
+								{
+									translationVector += snapRotation * forward;
+								}
+								else if ((gridPositions[i] with { y = 0 } - snapRotation * forward - collider.transform.position with { y = 0 }).sqrMagnitude < translationVector.sqrMagnitude)
+								{
+									translationVector -= snapRotation * forward;
+								}
+							}
+						}
+					}
+				}
+
+				for (int i = 0; translationVector != Vector3.zero && i < gridPositions.Count; ++i)
+				{
+					gridPositions[i] -= translationVector;
+				}
+			}
+		}
+
+		List<PlantingCell> grid = new();
+		Heightmap heightmap = Heightmap.FindHeightmap(originPos);
+
+		foreach (Vector3 gridPos in gridPositions)
+		{
+			Vector3 pos = gridPos with { y = ZoneSystem.instance.GetGroundHeight(gridPos) };
+
+			Player.PlacementStatus valid = Player.PlacementStatus.Valid;
+			if (placedPlant.GetComponent<Piece>().m_cultivatedGroundOnly && !heightmap.IsCultivated(pos))
+			{
+				valid = Player.PlacementStatus.NeedCultivated;
+			}
+			else if (!HasGrowSpace(pos, placedPlant.gameObject))
+			{
+				valid = Player.PlacementStatus.Invalid;
+			}
+
+			grid.Add(new PlantingCell { pos = pos, valid = valid });
+		}
+
+		// exchange positions to have primary ghost (i.e. Player.m_placementGhost) position next to center if possible, otherwise a build-able position
+		int centerValidIndex = grid.Select((c, i) => new Tuple<PlantingCell, int>(c, i)).Where(g => g.Item1.valid == Player.PlacementStatus.Valid).OrderBy(g => (originPos - g.Item1.pos).magnitude).FirstOrDefault()?.Item2 ?? 0;
+		// ReSharper disable once SwapViaDeconstruction
+		PlantingCell centerPos = grid[centerValidIndex];
+		grid[centerValidIndex] = grid[0];
+		grid[0] = centerPos;
+
+		return grid;
 	}
 
 	private static readonly int _plantSpaceMask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "piece_nonsolid");
@@ -225,6 +338,12 @@ public class MassPlant
 			return;
 		}
 
+		if (Farming.snapModeToggleHotkey.Value.IsDown())
+		{
+			//Hotkey required
+			snapping = !snapping;
+		}
+
 		if (Farming.plantModeToggleHotkey.Value.IsDown())
 		{
 			//Hotkey required
@@ -256,38 +375,41 @@ public class MassPlant
 		_fakeResourcePiece.m_resources[0].m_resItem = requirement.m_resItem;
 		_fakeResourcePiece.m_resources[0].m_amount = requirement.m_amount;
 
-		Vector3 position = ghost.transform.position;
-		Heightmap heightmap = Heightmap.FindHeightmap(position);
-		List<Vector3> positions = BuildPlantingGridPositions(position, plant, ghost.transform.rotation);
+		placements = BuildPlantingGridPositions(ghost.transform.position, plant, ghost.transform.rotation);
 
 		_placementGhosts[0] = ghost;
 
 		for (int i = 0; i < _placementGhosts.Length; ++i)
 		{
-			Vector3 newPos = positions[i];
+			Vector3 newPos = placements[i].pos;
 
 			//Track total cost of each placement
 			_fakeResourcePiece.m_resources[0].m_amount += requirement.m_amount;
 
 			_placementGhosts[i]!.transform.position = newPos;
-			_placementGhosts[i]!.transform.rotation = ghost.transform.rotation;
+			_placementGhosts[i]!.transform.rotation = Quaternion.Euler(new Vector3(0, randomGhostRotations[i], 0)) * ghost.transform.rotation;
 			_placementGhosts[i]!.SetActive(true);
 
-			bool invalid = false;
-			if (ghost.GetComponent<Piece>().m_cultivatedGroundOnly && !heightmap.IsCultivated(newPos))
+			Player.PlacementStatus valid = placements[i].valid;
+			if (i == 0)
 			{
-				invalid = true;
-			}
-			else if (!HasGrowSpace(newPos, ghost.gameObject))
-			{
-				invalid = true;
-			}
-			else if (!__instance.m_noPlacementCost && !__instance.HaveRequirements(_fakeResourcePiece, Player.RequirementMode.CanBuild))
-			{
-				invalid = true;
+				__instance.m_placementStatus = valid;
 			}
 
-			_placementGhosts[i]!.GetComponent<Piece>().SetInvalidPlacementHeightlight(invalid);
+			if (valid == Player.PlacementStatus.Valid && !__instance.m_noPlacementCost && !__instance.HaveRequirements(_fakeResourcePiece, Player.RequirementMode.CanBuild))
+			{
+				valid = Player.PlacementStatus.Invalid;
+			}
+
+			_placementGhosts[i]!.GetComponent<Piece>().SetInvalidPlacementHeightlight(valid != Player.PlacementStatus.Valid);
+		}
+	}
+
+	public static void determineGhostRotations()
+	{
+		for (int i = 1; i < randomGhostRotations.Length; ++i)
+		{
+			randomGhostRotations[i] = Farming.randomRotation.Value == Farming.Toggle.Off ? 0 : Random.Range(0f, 360f);
 		}
 	}
 
@@ -302,7 +424,10 @@ public class MassPlant
 			if (_placementGhosts.Length != requiredSize)
 			{
 				_placementGhosts = new GameObject[requiredSize];
+				randomGhostRotations = new float[requiredSize];
 			}
+
+			determineGhostRotations();
 
 			if (player.m_buildPieces is { } pieceTable && pieceTable.GetSelectedPrefab() is { } prefab)
 			{
