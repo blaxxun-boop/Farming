@@ -201,7 +201,7 @@ public class MassPlant
 			if (minTranslationAll < plantDistance * plantSpacing)
 			{
 				Quaternion snapRotation = Quaternion.identity;
-				if (snappingPositions.Count > 1)
+				if (snappingPositions.Count > 1 && gridPositions.Count > 1)
 				{
 					Vector3 firstSnapPos = snappingPositions.OrderBy(p => snappingPositions.Where(s => s != p).Min(s => Utils.DistanceXZ(s, p)) + (p - originPos).magnitude / 1000f).First();
 					Vector3 nextSnapPos = snappingPositions.Where(p => p != firstSnapPos).OrderBy(p => Utils.DistanceXZ(firstSnapPos, p) + (p - originPos).magnitude / 1000f).First();
