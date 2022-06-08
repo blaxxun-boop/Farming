@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -6,6 +7,7 @@ using JetBrains.Annotations;
 using ServerSync;
 using SkillManager;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Farming;
 
@@ -13,7 +15,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.0.1";
+	private const string ModVersion = "2.1.0";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -28,6 +30,7 @@ public class Farming : BaseUnityPlugin
 	public static ConfigEntry<int> increaseHarvestAmount = null!;
 	public static ConfigEntry<Toggle> randomRotation = null!;
 	public static ConfigEntry<KeyboardShortcut> snapModeToggleHotkey = null!;
+	private static ConfigEntry<int> showPlantProgressLevel = null!;
 
 	private ConfigEntry<T> config<T>(string group, string name, T value, ConfigDescription description, bool synchronizedSetting = true)
 	{
@@ -66,6 +69,7 @@ public class Farming : BaseUnityPlugin
 		configSync.AddLockingConfigEntry(serverConfigLocked);
 		growSpeedFactor = config("2 - Crops", "Grow Speed Factor", 3f, new ConfigDescription("Speed factor for crop growth at skill level 100.", new AcceptableValueRange<float>(1f, 10f)));
 		cropYieldFactor = config("2 - Crops", "Crop Yield Factor", 2f, new ConfigDescription("Item yield factor for crops at skill level 100.", new AcceptableValueRange<float>(1f, 5f)));
+		showPlantProgressLevel = config("2 - Crops", "Show Progress Level", 30, new ConfigDescription("Required skill level to see the progress of planted crops. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
 		ignoreBiomeLevel = config("2 - Crops", "Ignore Biome Level", 50, new ConfigDescription("Required skill level to ignore the required biome of planted crops. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
 		increasePlantAmount = config("2 - Crops", "Plant Increase Interval", 20, new ConfigDescription("Level interval to increase the number of crops planted at the same time. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
 		increaseHarvestAmount = config("2 - Crops", "Harvest Increase Interval", 20, new ConfigDescription("Level interval to increase the radius harvested at the same time. 0 is disabled.", new AcceptableValueRange<int>(0, 100), new ConfigurationManagerAttributes { ShowRangeAsPercent = false }));
@@ -134,11 +138,23 @@ public class Farming : BaseUnityPlugin
 				int yieldMultiplier = zdo.GetInt("Farming Yield Multiplier", 1);
 				if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
 				{
-					int baseYield = Mathf.FloorToInt(cropYieldFactor.Value - 1);
-					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - 1 - baseYield ? 0 : 1);
+					int baseYield = Mathf.FloorToInt(cropYieldFactor.Value);
+					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 0 : 1);
 					zdo.Set("Farming Yield Multiplier", yieldMultiplier);
 				}
 				__instance.m_amount *= yieldMultiplier;
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(Plant), nameof(Plant.GetHoverText))]
+	private static class DisplayProgress
+	{
+		private static void Postfix(Plant __instance, ref string __result)
+		{
+			if (showPlantProgressLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Farming") >= showPlantProgressLevel.Value / 100f)
+			{
+				__result += $"\n{Math.Min(100, Math.Round(__instance.TimeSincePlanted() / __instance.GetGrowTime() * 100))}% grown";
 			}
 		}
 	}

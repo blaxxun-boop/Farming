@@ -160,8 +160,20 @@ public class MassPlant
 	private static List<PlantingCell> BuildPlantingGridPositions(Vector3 originPos, Plant placedPlant, Quaternion rotation)
 	{
 		float plantDistance = placedPlant.m_growRadius * 2;
-		int height = GridHeight();
-		int width = GridWidth();
+		int height = massPlanting ? GridHeight() : 1;
+		int width = massPlanting ? GridWidth() : 1;
+
+		int originalHeight = height;
+		int originalWidth = width;
+
+		if (width == 1)
+		{
+			width = 3;
+		}
+		if (height == 1)
+		{
+			height = 3;
+		}
 
 		List<Vector3> gridPositions = new(width * height);
 		Vector3 left = rotation * Vector3.left * plantDistance;
@@ -206,6 +218,7 @@ public class MassPlant
 					Vector3 firstSnapPos = snappingPositions.OrderBy(p => snappingPositions.Where(s => s != p).Min(s => Utils.DistanceXZ(s, p)) + (p - originPos).magnitude / 1000f).First();
 					Vector3 nextSnapPos = snappingPositions.Where(p => p != firstSnapPos).OrderBy(p => Utils.DistanceXZ(firstSnapPos, p) + (p - originPos).magnitude / 1000f).First();
 					float angle = Vector3.SignedAngle(gridPositions[0] - gridPositions[1], firstSnapPos - nextSnapPos, Vector3.up);
+					angle = (angle + 225) % 90 - 45;
 					snapRotation = Quaternion.Euler(0, angle, 0);
 					for (int i = 0; i < gridPositions.Count; ++i)
 					{
@@ -274,6 +287,11 @@ public class MassPlant
 			}
 
 			grid.Add(new PlantingCell { pos = pos, valid = valid });
+		}
+
+		if (originalWidth == 1)
+		{
+			grid = originalHeight == 1 ? new List<PlantingCell> { grid[4] } : new List<PlantingCell> { grid[2], grid[3] };
 		}
 
 		// exchange positions to have primary ghost (i.e. Player.m_placementGhost) position next to center if possible, otherwise a build-able position
@@ -350,12 +368,6 @@ public class MassPlant
 			massPlanting = !massPlanting;
 		}
 
-		if (!massPlanting)
-		{
-			SetGhostsActive(false);
-			return;
-		}
-
 		Plant? plant = ghost.GetComponent<Plant>();
 		if (!plant)
 		{
@@ -381,6 +393,12 @@ public class MassPlant
 
 		for (int i = 0; i < _placementGhosts.Length; ++i)
 		{
+			if (i == 1 && !massPlanting)
+			{
+				SetGhostsActive(false);
+				return;
+			}
+
 			Vector3 newPos = placements[i].pos;
 
 			//Track total cost of each placement
