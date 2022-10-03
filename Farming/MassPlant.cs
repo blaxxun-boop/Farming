@@ -66,12 +66,33 @@ public class MassPlant
 		}
 	}
 
-	[HarmonyPrefix]
 	[HarmonyPatch(typeof(Player), nameof(Player.UpdatePlacement))]
-	public static void UpdatePlacementPrefix(bool takeInput, float dt)
+	private static class ChangeStaminaUsage
 	{
-		//Clear any previous place result
-		placeSuccessful = false;
+		private static float stamina = 0f;
+		private static ItemDrop.ItemData? item;
+
+		private static void Prefix(Player __instance, bool takeInput, float dt)
+		{
+			if (__instance.GetRightItem()?.m_shared.m_name == "$item_cultivator")
+			{
+				item = __instance.GetRightItem();
+				stamina = item.m_shared.m_attack.m_attackStamina;
+				item.m_shared.m_attack.m_attackStamina *= Mathf.Max(0, 1 - __instance.GetSkillFactor("Farming") * Farming.staminaReductionPerLevel.Value);
+			}
+
+			//Clear any previous place result
+			placeSuccessful = false;
+		}
+
+		private static void Finalizer()
+		{
+			if (item is not null)
+			{
+				item.m_shared.m_attack.m_attackStamina = stamina;
+				item = null;
+			}
+		}
 	}
 
 	[HarmonyPostfix]
