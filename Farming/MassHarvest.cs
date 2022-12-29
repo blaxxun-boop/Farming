@@ -20,12 +20,12 @@ public static class MassHarvest
 			
 			isPicked = true;
 
-			int plantMask = LayerMask.GetMask("piece_nonsolid");
+			int plantMask = LayerMask.GetMask("piece_nonsolid", "item");
 
 			// ReSharper disable once Unity.PreferNonAllocApi
 			foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, (int)(Player.m_localPlayer.GetSkillFactor("Farming") * 100 / Farming.increaseHarvestAmount.Value) * 1.5f, plantMask))
 			{
-				if (collider.GetComponent<Pickable>() is { } pickable && pickable != __instance)
+				if ((collider.GetComponent<Pickable>() ?? collider.transform.parent.GetComponent<Pickable>()) is { } pickable && pickable != __instance)
 				{
 					pickable.Interact(Player.m_localPlayer, false, false);
 				}
