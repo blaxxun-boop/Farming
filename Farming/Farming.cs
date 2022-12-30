@@ -15,7 +15,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.1.4";
+	private const string ModVersion = "2.1.5";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -25,6 +25,7 @@ public class Farming : BaseUnityPlugin
 	private static ConfigEntry<float> cropYieldFactor = null!;
 	private static ConfigEntry<int> ignoreBiomeLevel = null!;
 	private static ConfigEntry<float> experienceGainedFactor = null!;
+	private static ConfigEntry<int> experienceLoss = null!;
 	public static ConfigEntry<KeyboardShortcut> plantModeToggleHotkey = null!;
 	public static ConfigEntry<int> increasePlantAmount = null!;
 	public static ConfigEntry<int> increaseHarvestAmount = null!;
@@ -80,6 +81,9 @@ public class Farming : BaseUnityPlugin
 		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the farming skill.", new AcceptableValueRange<float>(0.01f, 5f)));
 		experienceGainedFactor.SettingChanged += (_, _) => farming.SkillGainFactor = experienceGainedFactor.Value;
 		farming.SkillGainFactor = experienceGainedFactor.Value;
+		experienceLoss = config("3 - Other", "Skill Experience Loss", 0, new ConfigDescription("How much experience to lose in the farming skill on death.", new AcceptableValueRange<int>(0, 100)));
+		experienceLoss.SettingChanged += (_, _) => farming.SkillLoss = experienceLoss.Value;
+		farming.SkillLoss = experienceLoss.Value;
 		plantModeToggleHotkey = config("3 - Other", "Toggle Mass Plant Hotkey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Shortcut to press to toggle between the single plant mode and the mass plant mode. Please note that you have to stand still, to toggle this."), false);
 		snapModeToggleHotkey = config("3 - Other", "Toggle Snapping Hotkey", new KeyboardShortcut(KeyCode.LeftControl), new ConfigDescription("Shortcut to press to toggle between snapping mode and not snapping. Please note that you have to stand still, to toggle this."), false);
 
