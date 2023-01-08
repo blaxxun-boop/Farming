@@ -12,10 +12,11 @@ using Random = UnityEngine.Random;
 namespace Farming;
 
 [BepInPlugin(ModGUID, ModName, ModVersion)]
+[BepInIncompatibility("org.bepinex.plugins.valheim_plus")]
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.1.6";
+	private const string ModVersion = "2.1.7";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -145,7 +146,7 @@ public class Farming : BaseUnityPlugin
 				if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
 				{
 					int baseYield = Mathf.FloorToInt(cropYieldFactor.Value);
-					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 0 : 1);
+					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 1 : 0);
 					zdo.Set("Farming Yield Multiplier", yieldMultiplier);
 				}
 				__instance.m_amount *= yieldMultiplier;
