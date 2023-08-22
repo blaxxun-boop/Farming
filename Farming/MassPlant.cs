@@ -72,7 +72,7 @@ public class MassPlant
 		private static float stamina = 0f;
 		private static ItemDrop.ItemData? item;
 
-		private static void Prefix(Player __instance, bool takeInput, float dt)
+		private static void Prefix(Player __instance)
 		{
 			if (__instance.GetRightItem()?.m_shared.m_name == "$item_cultivator")
 			{
@@ -167,7 +167,7 @@ public class MassPlant
 				Farming.PlayerIsPlantingPlants.planting = false;
 			}
 
-			++Game.instance.GetPlayerProfile().m_playerStats.m_builds;
+			Game.instance.GetPlayerProfile().IncrementStat(PlayerStatType.Builds);
 			__instance.ConsumeResources(placedPiece.m_resources, 0);
 		}
 	}
@@ -344,8 +344,8 @@ public class MassPlant
 		m_dlc = string.Empty,
 		m_resources = new[]
 		{
-			new Piece.Requirement()
-		}
+			new Piece.Requirement(),
+		},
 	};
 	private static readonly int RippleDistance = Shader.PropertyToID("_RippleDistance");
 	private static readonly int ValueNoise = Shader.PropertyToID("_ValueNoise");

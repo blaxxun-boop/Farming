@@ -10,7 +10,7 @@ public static class MassHarvest
 	private class HarvestNearbyPickables
 	{
 		private static bool isPicked = false;
-		
+
 		private static readonly int itemMask = LayerMask.NameToLayer("item");
 		private static readonly int plantMask = LayerMask.GetMask("piece_nonsolid", "item");
 
@@ -18,12 +18,12 @@ public static class MassHarvest
 		private static void Postfix(Pickable __instance)
 		{
 			bool isFarmingPickable(Pickable pickable) => pickable.gameObject.layer != itemMask || pickable.m_amount > 1;
-			
+
 			if (isPicked || Farming.increaseHarvestAmount.Value == 0 || !isFarmingPickable(__instance))
 			{
 				return;
 			}
-			
+
 			isPicked = true;
 
 			// ReSharper disable once Unity.PreferNonAllocApi

@@ -16,7 +16,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.1.8";
+	private const string ModVersion = "2.1.9";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -50,7 +50,7 @@ public class Farming : BaseUnityPlugin
 	public enum Toggle
 	{
 		On = 1,
-		Off = 0
+		Off = 0,
 	}
 
 	private class ConfigurationManagerAttributes
