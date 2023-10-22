@@ -11,15 +11,16 @@ public static class MassHarvest
 	{
 		private static bool isPicked = false;
 
-		private static readonly int itemMask = LayerMask.NameToLayer("item");
 		private static readonly int plantMask = LayerMask.GetMask("piece_nonsolid", "item");
 
-		[HarmonyPriority(Priority.LowerThanNormal)]
-		private static void Postfix(Pickable __instance)
-		{
-			bool isFarmingPickable(Pickable pickable) => pickable.gameObject.layer != itemMask || pickable.m_amount > 1;
+		private static bool isFarmingPickable(Pickable pickable) => pickable.m_nview.GetZDO().GetInt("Farming Yield Multiplier") > 0;
 
-			if (isPicked || Farming.increaseHarvestAmount.Value == 0 || !isFarmingPickable(__instance))
+		private static void Prefix(Pickable __instance, out bool __state) => __state = isPicked || Farming.increaseHarvestAmount.Value == 0 || !isFarmingPickable(__instance);
+
+		[HarmonyPriority(Priority.LowerThanNormal)]
+		private static void Postfix(Pickable __instance, bool __state)
+		{
+			if (__state)
 			{
 				return;
 			}

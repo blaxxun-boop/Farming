@@ -16,7 +16,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.1.10";
+	private const string ModVersion = "2.1.11";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -117,7 +117,7 @@ public class Farming : BaseUnityPlugin
 		{
 			if (PlayerIsPlantingPlants.planting)
 			{
-				__instance.m_nview.GetZDO().Set("Farming Skill Level", Player.m_localPlayer.GetSkillFactor("Farming"));
+				__instance.m_nview.GetZDO().Set("Farming Skill Level", Player.m_localPlayer.GetSkillFactor("Farming") + 1e-14f);
 				Player.m_localPlayer.RaiseSkill("Farming");
 			}
 			if (ignoreBiomeLevel.Value > 0 && __instance.m_nview?.GetZDO()?.GetFloat("Farming Skill Level") >= ignoreBiomeLevel.Value / 100f)
@@ -143,10 +143,13 @@ public class Farming : BaseUnityPlugin
 			if (__instance.m_nview?.GetZDO() is { } zdo)
 			{
 				int yieldMultiplier = zdo.GetInt("Farming Yield Multiplier", 1);
-				if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
+				if (SaveSkillFactor.skillFactor > 0)
 				{
-					int baseYield = Mathf.FloorToInt(cropYieldFactor.Value);
-					yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 1 : 0);
+					if (Random.Range(0f, 1f) < SaveSkillFactor.skillFactor)
+					{
+						int baseYield = Mathf.FloorToInt(cropYieldFactor.Value);
+						yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 1 : 0);
+					}
 					zdo.Set("Farming Yield Multiplier", yieldMultiplier);
 				}
 				__instance.m_amount *= yieldMultiplier;
