@@ -13,7 +13,7 @@ public static class MassHarvest
 
 		private static readonly int plantMask = LayerMask.GetMask("piece_nonsolid", "item");
 
-		private static bool isFarmingPickable(Pickable pickable) => pickable.m_nview.GetZDO().GetInt("Farming Yield Multiplier") > 0;
+		private static bool isFarmingPickable(Pickable pickable) => pickable.m_nview?.GetZDO().GetInt("Farming Yield Multiplier") > 0;
 
 		private static void Prefix(Pickable __instance, out bool __state) => __state = isPicked || Farming.increaseHarvestAmount.Value == 0 || !isFarmingPickable(__instance);
 
