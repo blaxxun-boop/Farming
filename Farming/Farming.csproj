@@ -9,9 +9,9 @@
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>Farming</RootNamespace>
         <AssemblyName>Farming</AssemblyName>
-        <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+        <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
-        <LangVersion>11</LangVersion>
+        <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
@@ -72,24 +72,21 @@
         <Reference Include="ServerSync, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>Libs\ServerSync.dll</HintPath>
         </Reference>
-        <Reference Include="SkillManager, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>Libs\SkillManager.dll</HintPath>
-        </Reference>
         <Reference Include="System"/>
         <Reference Include="System.Core"/>
         <Reference Include="System.Data"/>
         <Reference Include="System.Xml"/>
         <Reference Include="UnityEngine, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\unstripped_corlib\UnityEngine.dll</HintPath>
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\unstripped_corlib\UnityEngine.CoreModule.dll</HintPath>
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.InputLegacyModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\unstripped_corlib\UnityEngine.InputLegacyModule.dll</HintPath>
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.InputLegacyModule.dll</HintPath>
         </Reference>
         <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-            <HintPath>$(GamePath)\unstripped_corlib\UnityEngine.PhysicsModule.dll</HintPath>
+            <HintPath>$(GamePath)\valheim_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
         </Reference>
     </ItemGroup>
     <ItemGroup>
@@ -99,12 +96,8 @@
         <Compile Include="Properties\AssemblyInfo.cs"/>
     </ItemGroup>
     <ItemGroup>
-        <EmbeddedResource Include="icons\farming.png"/>
         <Content Include="ILRepack.targets"/>
         <Content Include="Libs\ServerSync.dll">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-        <Content Include="Libs\SkillManager.dll">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
     </ItemGroup>

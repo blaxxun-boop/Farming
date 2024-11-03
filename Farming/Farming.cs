@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Reflection.Emit;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using JetBrains.Annotations;
 using ServerSync;
-using SkillManager;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -16,7 +17,7 @@ namespace Farming;
 public class Farming : BaseUnityPlugin
 {
 	private const string ModName = "Farming";
-	private const string ModVersion = "2.1.12";
+	private const string ModVersion = "2.2.0";
 	private const string ModGUID = "org.bepinex.plugins.farming";
 
 	private static readonly ConfigSync configSync = new(ModGUID) { DisplayName = ModName, CurrentVersion = ModVersion, MinimumRequiredVersion = ModVersion };
@@ -58,16 +59,10 @@ public class Farming : BaseUnityPlugin
 		[UsedImplicitly] public bool? ShowRangeAsPercent;
 	}
 
-	private static Skill farming = null!;
+	private static Skills.SkillDef? farmingSkill;
 
 	public void Awake()
 	{
-		farming = new Skill("Farming", "farming.png");
-		farming.Description.English("Reduces the time required for plants to grow and increases item yield for harvesting plants.");
-		farming.Name.German("Landwirtschaft");
-		farming.Description.German("Reduziert die Zeit, bis Pflanzen wachsen und erhöht die Ausbeute beim Ernten von Pflanzen.");
-		farming.Configurable = false;
-
 		serverConfigLocked = config("1 - General", "Lock Configuration", Toggle.On, "If on, the configuration is locked and can be changed by server admins only.");
 		configSync.AddLockingConfigEntry(serverConfigLocked);
 		growSpeedFactor = config("2 - Crops", "Grow Speed Factor", 3f, new ConfigDescription("Speed factor for crop growth at skill level 100.", new AcceptableValueRange<float>(1f, 10f)));
@@ -80,17 +75,123 @@ public class Farming : BaseUnityPlugin
 		randomRotation = config("2 - Crops", "Random Rotation", Toggle.Off, new ConfigDescription("Rotates each crop randomly. Some people say this looks more natural."), false);
 		randomRotation.SettingChanged += (_, _) => MassPlant.determineGhostRotations();
 		experienceGainedFactor = config("3 - Other", "Skill Experience Gain Factor", 1f, new ConfigDescription("Factor for experience gained for the farming skill.", new AcceptableValueRange<float>(0.01f, 5f)));
-		experienceGainedFactor.SettingChanged += (_, _) => farming.SkillGainFactor = experienceGainedFactor.Value;
-		farming.SkillGainFactor = experienceGainedFactor.Value;
+		experienceGainedFactor.SettingChanged += (_, _) =>
+		{
+			if (farmingSkill is not null)
+			{
+				farmingSkill.m_increseStep = experienceGainedFactor.Value;
+			}
+		};
 		experienceLoss = config("3 - Other", "Skill Experience Loss", 0, new ConfigDescription("How much experience to lose in the farming skill on death.", new AcceptableValueRange<int>(0, 100)));
-		experienceLoss.SettingChanged += (_, _) => farming.SkillLoss = experienceLoss.Value;
-		farming.SkillLoss = experienceLoss.Value;
 		plantModeToggleHotkey = config("3 - Other", "Toggle Mass Plant Hotkey", new KeyboardShortcut(KeyCode.LeftShift), new ConfigDescription("Shortcut to press to toggle between the single plant mode and the mass plant mode. Please note that you have to stand still, to toggle this."), false);
 		snapModeToggleHotkey = config("3 - Other", "Toggle Snapping Hotkey", new KeyboardShortcut(KeyCode.LeftControl), new ConfigDescription("Shortcut to press to toggle between snapping mode and not snapping. Please note that you have to stand still, to toggle this."), false);
 
 		Assembly assembly = Assembly.GetExecutingAssembly();
 		Harmony harmony = new(ModGUID);
 		harmony.PatchAll(assembly);
+	}
+	
+	[HarmonyPatch(typeof(Skills), nameof(Skills.Awake))]
+	private static class SetXPGain
+	{
+		private static void Postfix(Skills __instance)
+		{
+			foreach (Skills.SkillDef skill in __instance.m_skills)
+			{
+				if (skill.m_skill == Skills.SkillType.Farming)
+				{
+					farmingSkill = skill;
+					skill.m_increseStep = experienceGainedFactor.Value;
+				}
+			}
+		}
+	}
+	
+	[HarmonyPatch(typeof(Skills), nameof(Skills.OnDeath))]
+	public class ChangeSkillLoss
+	{
+		private static void Prefix(Skills __instance, ref Skills.Skill? __state)
+		{
+			if (__instance.m_skillData.TryGetValue(Skills.SkillType.Farming, out Skills.Skill skill))
+			{
+				__state = skill;
+				if (experienceLoss.Value > 0)
+				{
+					skill.m_level -= skill.m_level * experienceLoss.Value / 100f;
+					skill.m_accumulator = 0.0f;
+				}
+				__instance.m_skillData.Remove(Skills.SkillType.Farming);
+			}
+		}
+
+		private static void Finalizer(Skills __instance, ref Skills.Skill? __state)
+		{
+			if (__state is not null)
+			{
+				__instance.m_skillData[Skills.SkillType.Farming] = __state;
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(Player), nameof(Player.GetBuildStamina))]
+	private static class DisableIndividualCultivatingStaminaUsage
+	{
+		private static Skills.SkillType PreventFarmingIncrease(Skills.SkillType skill) => skill == Skills.SkillType.Farming ? Skills.SkillType.None : skill;
+
+		private static readonly MethodInfo getSkillFactor = AccessTools.DeclaredMethod(typeof(Character), nameof(Character.GetSkillFactor));
+
+		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			foreach (CodeInstruction instruction in instructions)
+			{
+				if (instruction.Calls(getSkillFactor))
+				{
+					yield return new CodeInstruction(OpCodes.Call, AccessTools.DeclaredMethod(typeof(DisableIndividualCultivatingStaminaUsage), nameof(PreventFarmingIncrease)));
+				}
+				yield return instruction;
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(Player), nameof(Player.UpdatePlacement))]
+	private static class RemoveFarmingSkillGainFromCultivator
+	{
+		private static float PreventFarmingIncrease(float skill) => Player.m_localPlayer.m_buildPieces?.m_skill == Skills.SkillType.Farming ? 0 : skill;
+
+		private static readonly MethodInfo raiseSkill = AccessTools.DeclaredMethod(typeof(Character), nameof(Character.RaiseSkill));
+
+		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			foreach (CodeInstruction instruction in instructions)
+			{
+				if (instruction.Calls(raiseSkill))
+				{
+					yield return new CodeInstruction(OpCodes.Call, AccessTools.DeclaredMethod(typeof(RemoveFarmingSkillGainFromCultivator), nameof(PreventFarmingIncrease)));
+				}
+				yield return instruction;
+			}
+		}
+	}
+
+	[HarmonyPatch(typeof(Pickable), nameof(Pickable.Interact))]
+	private static class RemoveFarmingSkillGainFromPickable
+	{
+		private static float PreventFarmingIncrease(float skill, Pickable pickable) => pickable.m_pickRaiseSkill == Skills.SkillType.Farming ? 0 : skill;
+
+		private static readonly MethodInfo raiseSkill = AccessTools.DeclaredMethod(typeof(Character), nameof(Character.RaiseSkill));
+
+		private static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+		{
+			foreach (CodeInstruction instruction in instructions)
+			{
+				if (instruction.Calls(raiseSkill))
+				{
+					yield return new CodeInstruction(OpCodes.Ldarg_0);
+					yield return new CodeInstruction(OpCodes.Call, AccessTools.DeclaredMethod(typeof(RemoveFarmingSkillGainFromPickable), nameof(PreventFarmingIncrease)));
+				}
+				yield return instruction;
+			}
+		}
 	}
 
 	[HarmonyPatch(typeof(Plant), nameof(Plant.GetGrowTime))]
@@ -117,8 +218,8 @@ public class Farming : BaseUnityPlugin
 		{
 			if (PlayerIsPlantingPlants.planting)
 			{
-				__instance.m_nview.GetZDO().Set("Farming Skill Level", Player.m_localPlayer.GetSkillFactor("Farming") + 1e-14f);
-				Player.m_localPlayer.RaiseSkill("Farming");
+				__instance.m_nview.GetZDO().Set("Farming Skill Level", Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming) + 1e-14f);
+				Player.m_localPlayer.RaiseSkill(Skills.SkillType.Farming);
 			}
 			if (ignoreBiomeLevel.Value > 0 && __instance.m_nview?.GetZDO()?.GetFloat("Farming Skill Level") >= ignoreBiomeLevel.Value / 100f)
 			{
@@ -151,6 +252,10 @@ public class Farming : BaseUnityPlugin
 						yieldMultiplier = baseYield + (Random.Range(0f, 1f) < cropYieldFactor.Value - baseYield ? 1 : 0);
 					}
 					zdo.Set("Farming Yield Multiplier", yieldMultiplier);
+					if (yieldMultiplier > 0)
+					{
+						__instance.m_maxLevelBonusChance = 0;
+					}
 				}
 				__instance.m_amount *= yieldMultiplier;
 			}
@@ -162,7 +267,7 @@ public class Farming : BaseUnityPlugin
 	{
 		private static void Postfix(Plant __instance, ref string __result)
 		{
-			if (showPlantProgressLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor("Farming") >= showPlantProgressLevel.Value / 100f)
+			if (showPlantProgressLevel.Value > 0 && Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming) >= showPlantProgressLevel.Value / 100f)
 			{
 				__result += $"\n{Math.Min(100, Math.Round(__instance.TimeSincePlanted() / __instance.GetGrowTime() * 100))}% grown";
 			}

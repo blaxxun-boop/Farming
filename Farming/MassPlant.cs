@@ -30,7 +30,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
-using SkillManager;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -52,18 +51,15 @@ public class MassPlant
 	private static bool snapping = true;
 	private const float plantSpacing = 1.8f;
 
-	private static int GridWidth() => 1 + Mathf.FloorToInt(Player.m_localPlayer.GetSkillFactor("Farming") * (100f / Farming.increasePlantAmount.Value)) / 2;
-	private static int GridHeight() => 1 + Mathf.FloorToInt(Mathf.Min(Player.m_localPlayer.GetSkillFactor("Farming"), 0.999f) * (100f / Farming.increasePlantAmount.Value) + 1) / 2;
+	private static int GridWidth() => 1 + Mathf.FloorToInt(Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming) * (100f / Farming.increasePlantAmount.Value)) / 2;
+	private static int GridHeight() => 1 + Mathf.FloorToInt(Mathf.Min(Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming), 0.999f) * (100f / Farming.increasePlantAmount.Value) + 1) / 2;
 
 	[HarmonyPostfix]
 	[HarmonyPatch(typeof(Player), nameof(Player.PlacePiece))]
-	public static void PlacePiecePostfix(Player __instance, ref bool __result, Piece piece)
+	public static void PlacePiecePostfix(Player __instance, Piece piece)
 	{
-		placeSuccessful = __result;
-		if (__result)
-		{
-			placedPiece = piece;
-		}
+		placeSuccessful = true;
+		placedPiece = piece;
 	}
 
 	[HarmonyPatch(typeof(Player), nameof(Player.UpdatePlacement))]
@@ -78,7 +74,7 @@ public class MassPlant
 			{
 				item = __instance.GetRightItem();
 				stamina = item.m_shared.m_attack.m_attackStamina;
-				item.m_shared.m_attack.m_attackStamina *= Mathf.Max(0, 1 - __instance.GetSkillFactor("Farming") * Farming.staminaReductionPerLevel.Value);
+				item.m_shared.m_attack.m_attackStamina *= Mathf.Max(0, 1 - __instance.GetSkillFactor(Skills.SkillType.Farming) * Farming.staminaReductionPerLevel.Value);
 			}
 
 			//Clear any previous place result
