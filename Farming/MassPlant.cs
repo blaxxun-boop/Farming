@@ -333,16 +333,22 @@ public class MassPlant
 		return true;
 	}
 
-	private static bool invalidatedGhosts = true;
-	private static GameObject?[] _placementGhosts = new GameObject?[1];
-	private static readonly Piece _fakeResourcePiece = new()
+	private static Piece createFakePiece()
 	{
-		m_dlc = string.Empty,
-		m_resources = new[]
+		GameObject go = new("Farming Mass Plant Fake Piece");
+		go.SetActive(false);
+		Object.DontDestroyOnLoad(go);
+		Piece piece = go.AddComponent<Piece>();
+		piece.m_resources = new[]
 		{
 			new Piece.Requirement(),
-		},
-	};
+		};
+		return piece;
+	}
+
+	private static bool invalidatedGhosts = true;
+	private static GameObject?[] _placementGhosts = new GameObject?[1];
+	private static readonly Piece _fakeResourcePiece = createFakePiece();
 	private static readonly int RippleDistance = Shader.PropertyToID("_RippleDistance");
 	private static readonly int ValueNoise = Shader.PropertyToID("_ValueNoise");
 
