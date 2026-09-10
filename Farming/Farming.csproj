@@ -72,6 +72,9 @@
         <Reference Include="ServerSync, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>Libs\ServerSync.dll</HintPath>
         </Reference>
+        <Reference Include="Splatform">
+            <HintPath>$(GamePath)\valheim_Data\Managed\Splatform.dll</HintPath>
+        </Reference>
         <Reference Include="System"/>
         <Reference Include="System.Core"/>
         <Reference Include="System.Data"/>
@@ -102,13 +105,13 @@
         </Content>
     </ItemGroup>
     <ItemGroup>
-      <None Include="App.config" />
+        <None Include="App.config"/>
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.1">
-        <PrivateAssets>all</PrivateAssets>
-        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      </PackageReference>
+        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.1">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
     <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
     <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

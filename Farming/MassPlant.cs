@@ -30,6 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
+using Splatform;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -154,7 +155,7 @@ public class MassPlant
 				Piece component = newPlaceObj.GetComponent<Piece>();
 				if (component)
 				{
-					component.SetCreator(__instance.GetPlayerID());
+					component.SetCreator(__instance.GetPlayerID(), PlatformManager.DistributionPlatform.LocalUser.PlatformUserID);
 				}
 				placedPiece.m_placeEffect.Create(newPos, rotation, newPlaceObj.transform);
 			}
