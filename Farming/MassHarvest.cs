@@ -12,7 +12,7 @@ public static class MassHarvest
 
 		private static readonly int plantMask = LayerMask.GetMask("piece_nonsolid", "item");
 
-		private static bool isFarmingPickable(Pickable pickable) => pickable.m_nview?.GetZDO().GetInt("Farming Yield Multiplier") > 0;
+		private static bool isFarmingPickable(Pickable pickable) => pickable && pickable.m_nview?.GetZDO() is { } zdo && zdo.IsValid() && zdo.GetInt("Farming Yield Multiplier") > 0;
 
 		private static void Prefix(Pickable __instance, out bool __state) => __state = isPicked || Farming.increaseHarvestAmount.Value == 0 || !isFarmingPickable(__instance);
 
@@ -25,17 +25,21 @@ public static class MassHarvest
 			}
 
 			isPicked = true;
-
-			// ReSharper disable once Unity.PreferNonAllocApi
-			foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, (int)(Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming) * 100 / Farming.increaseHarvestAmount.Value) * 1.5f, plantMask))
+			try
 			{
-				if ((collider.GetComponent<Pickable>() ?? collider.transform.parent?.GetComponent<Pickable>()) is { } pickable && pickable != __instance && isFarmingPickable(pickable))
+				// ReSharper disable once Unity.PreferNonAllocApi
+				foreach (Collider collider in Physics.OverlapSphere(__instance.transform.position, (int)(Player.m_localPlayer.GetSkillFactor(Skills.SkillType.Farming) * 100 / Farming.increaseHarvestAmount.Value) * 1.5f, plantMask))
 				{
-					pickable.Interact(Player.m_localPlayer, false, false);
+					if ((collider.GetComponent<Pickable>() ?? collider.transform.parent?.GetComponent<Pickable>()) is { } pickable && pickable != __instance && isFarmingPickable(pickable))
+					{
+						pickable.Interact(Player.m_localPlayer, false, false);
+					}
 				}
 			}
-
-			isPicked = false;
+			finally
+			{
+				isPicked = false;
+			}
 		}
 	}
 }
